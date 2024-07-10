@@ -2,7 +2,7 @@ const { ApiPromise, WsProvider } = require('@polkadot/api');
 const sqlite3 = require('sqlite3').verbose();
 const async = require('async');
 
-const wsProvider = new WsProvider('wss://your-argochain-ws-endpoint');
+const wsProvider = new WsProvider('wss://rpc.devolvedai.com');
 let db;
 
 async function main() {
