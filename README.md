@@ -1,4 +1,4 @@
-# argochain_explorer
+# argochain explorer
 An explorer made specifically for the Argochain ecosystem.
 
 Let's break down the implementation into separate scripts for better manageability: 
