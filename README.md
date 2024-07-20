@@ -90,23 +90,30 @@ CREATE TABLE gas_fees (
 
 ### Initialize Project
 
-mkdir project-root
-cd project-root
-npm init -y
-npm install typescript ts-node @types/node --save-dev
-npm install pg ws express body-parser dotenv
-npx tsc --init
+
+    ```bash
+    mkdir project-root
+    cd project-root
+    npm init -y
+    npm install typescript ts-node @types/node --save-dev
+    npm install pg ws express body-parser dotenv
+    npx tsc --init
+    ```
+
 
 
 ## Configure Environment Variables (.env)
 
-PG_HOST=your_postgres_host
-PG_PORT=your_postgres_port
-PG_DATABASE=your_database_name
-PG_USER=your_database_user
-PG_PASSWORD=your_database_password
-WS_URL=wss://your_blockchain_node_ws_endpoint
-PORT=3000
+
+    ```bash
+    PG_HOST=your_postgres_host
+    PG_PORT=your_postgres_port
+    PG_DATABASE=your_database_name
+    PG_USER=your_database_user
+    PG_PASSWORD=your_database_password
+    WS_URL=wss://your_blockchain_node_ws_endpoint
+    PORT=3000
+    ```
 
 
 ## Installation
