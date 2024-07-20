@@ -1,5 +1,5 @@
 # argochain index
-An explorer made specifically for the Argochain ecosystem.
+A data ingestion tool made specifically for the Argochain ecosystem.
 
 This project is designed to ingest data from the blockchain and store it in a PostgreSQL database. It uses WebSocket for real-time data fetching, and PM2 for process management.
 
