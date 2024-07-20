@@ -86,9 +86,9 @@ CREATE TABLE gas_fees (
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-Step 2: Set Up Node.js Project with TypeScript
+## Step 2: Set Up Node.js Project with TypeScript
 
-Initialize Project
+### Initialize Project
 
 mkdir project-root
 cd project-root
@@ -97,33 +97,8 @@ npm install typescript ts-node @types/node --save-dev
 npm install pg ws express body-parser dotenv
 npx tsc --init
 
-Project Structure
 
-project-root
-│
-├── src
-│   ├── config
-│   │   └── db.ts
-│   ├── utils
-│   │   └── hash.ts
-│   ├── websocket
-│   │   └── ws.ts
-│   ├── routes
-│   │   ├── blocks.ts
-│   │   ├── transactions.ts
-│   │   ├── tokens.ts
-│   │   ├── contracts.ts
-│   ├── scripts
-│   │   └── garbageCollector.ts
-│   ├── index.ts
-│   └── server.ts
-│
-├── .env
-├── package.json
-├── tsconfig.json
-└── README.md
-
-Configure Environment Variables (.env)
+## Configure Environment Variables (.env)
 
 PG_HOST=your_postgres_host
 PG_PORT=your_postgres_port
