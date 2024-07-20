@@ -22,6 +22,118 @@ Before you begin, ensure you have met the following requirements:
 - Docker and Docker Compose installed
 - PostgreSQL installed and running
 
+Step 1: Set Up PostgreSQL Database
+
+First, create the necessary tables in PostgreSQL to store the data.
+
+CREATE TABLE blocks (
+    block_number BIGINT PRIMARY KEY,
+    block_hash VARCHAR(66) NOT NULL,
+    parent_hash VARCHAR(66) NOT NULL,
+    state_root VARCHAR(66) NOT NULL,
+    extrinsics_root VARCHAR(66) NOT NULL,
+    timestamp TIMESTAMP NOT NULL
+);
+
+CREATE INDEX idx_blocks_hash ON blocks(block_hash);
+
+CREATE TABLE events (
+    id SERIAL PRIMARY KEY,
+    block_number BIGINT REFERENCES blocks(block_number),
+    section VARCHAR(255) NOT NULL,
+    method VARCHAR(255) NOT NULL,
+    data JSONB NOT NULL
+);
+
+CREATE INDEX idx_events_block_number ON events(block_number);
+CREATE INDEX idx_events_section_method ON events(section, method);
+
+CREATE TABLE transactions (
+    original_tx_hash VARCHAR(66) PRIMARY KEY,
+    tx_hash VARCHAR(66) UNIQUE,
+    block_number BIGINT REFERENCES blocks(block_number),
+    from_address VARCHAR(66) NOT NULL,
+    to_address VARCHAR(66) NOT NULL,
+    amount DECIMAL(38, 18) NOT NULL,
+    fee DECIMAL(38, 18) NOT NULL,
+    gas_fee DECIMAL(38, 18) NOT NULL,
+    gas_value DECIMAL(38, 18) NOT NULL,
+    method VARCHAR(255) NOT NULL,
+    events JSONB NOT NULL
+);
+
+CREATE INDEX idx_transactions_block_number ON transactions(block_number);
+CREATE INDEX idx_transactions_from_address ON transactions(from_address);
+CREATE INDEX idx_transactions_to_address ON transactions(to_address);
+
+CREATE TABLE accounts (
+    address VARCHAR(66) PRIMARY KEY,
+    balance DECIMAL(38, 18) NOT NULL
+);
+
+CREATE INDEX idx_accounts_balance ON accounts(balance);
+
+CREATE TABLE extrinsics (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    weight BIGINT NOT NULL
+);
+
+CREATE TABLE gas_fees (
+    id SERIAL PRIMARY KEY,
+    extrinsic_id INTEGER REFERENCES extrinsics(id),
+    gas_fee DECIMAL(38, 18) NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+Step 2: Set Up Node.js Project with TypeScript
+
+Initialize Project
+
+mkdir project-root
+cd project-root
+npm init -y
+npm install typescript ts-node @types/node --save-dev
+npm install pg ws express body-parser dotenv
+npx tsc --init
+
+Project Structure
+
+project-root
+│
+├── src
+│   ├── config
+│   │   └── db.ts
+│   ├── utils
+│   │   └── hash.ts
+│   ├── websocket
+│   │   └── ws.ts
+│   ├── routes
+│   │   ├── blocks.ts
+│   │   ├── transactions.ts
+│   │   ├── tokens.ts
+│   │   ├── contracts.ts
+│   ├── scripts
+│   │   └── garbageCollector.ts
+│   ├── index.ts
+│   └── server.ts
+│
+├── .env
+├── package.json
+├── tsconfig.json
+└── README.md
+
+Configure Environment Variables (.env)
+
+PG_HOST=your_postgres_host
+PG_PORT=your_postgres_port
+PG_DATABASE=your_database_name
+PG_USER=your_database_user
+PG_PASSWORD=your_database_password
+WS_URL=wss://your_blockchain_node_ws_endpoint
+PORT=3000
+
+
 ## Installation
 
 1. Clone the repository:
