@@ -26,6 +26,8 @@ Step 1: Set Up PostgreSQL Database
 
 First, create the necessary tables in PostgreSQL to store the data.
 
+
+
 CREATE TABLE blocks (
     block_number BIGINT PRIMARY KEY,
     block_hash VARCHAR(66) NOT NULL,
@@ -85,6 +87,9 @@ CREATE TABLE gas_fees (
     gas_fee DECIMAL(38, 18) NOT NULL,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+
+
 
 ## Step 2: Set Up Node.js Project with TypeScript
 
