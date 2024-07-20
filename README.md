@@ -1,212 +1,197 @@
-# argochain explorer
+# argochain index
 An explorer made specifically for the Argochain ecosystem.
 
-Let's break down the implementation into separate scripts for better manageability: 
+This project is designed to ingest data from the blockchain and store it in a PostgreSQL database. It uses WebSocket for real-time data fetching, and PM2 for process management.
 
-1. **Database Schema Initialization**
-2. **Fetch and Store Chain Data**
-3. **Query Functions**
+## Table of Contents
 
-### Step 1: Database Schema Initialization
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Docker Setup](#docker-setup)
+- [API Endpoints](#api-endpoints)
+- [Contributing](#contributing)
+- [License](#license)
 
-Create a script to set up the database schema. Save this as `initDb.js`.
+## Prerequisites
 
-```javascript
-const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database('./substrate_data.db');
+Before you begin, ensure you have met the following requirements:
 
-db.serialize(() => {
-  db.run("CREATE TABLE IF NOT EXISTS blocks (number INTEGER PRIMARY KEY, hash TEXT)");
-  db.run("CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY AUTOINCREMENT, block_number INTEGER, section TEXT, method TEXT, data TEXT)");
-  db.run("CREATE TABLE IF NOT EXISTS transactions (hash TEXT PRIMARY KEY, block_number INTEGER, from_address TEXT, to_address TEXT, amount TEXT, fee TEXT)");
-  db.run("CREATE TABLE IF NOT EXISTS accounts (address TEXT PRIMARY KEY, balance TEXT)");
-});
+- Node.js and npm installed on your machine
+- Docker and Docker Compose installed
+- PostgreSQL installed and running
 
-db.close();
-```
+## Installation
 
-Run this script to initialize the database:
+1. Clone the repository:
 
-```sh
-node initDb.js
-```
+    ```bash
+    git clone https://github.com/your-username/blockchain-ingestion.git
+    cd blockchain-ingestion
+    ```
 
-### Step 2: Fetch and Store Chain Data
+2. Install the dependencies:
 
-Create a script to fetch and store the entire chain’s history. Save this as `fetchChainData.js`.
+    ```bash
+    npm install
+    ```
 
-```javascript
-const { ApiPromise, WsProvider } = require('@polkadot/api');
-const sqlite3 = require('sqlite3').verbose();
-const async = require('async');
-const crypto = require('crypto');
+3. Initialize TypeScript:
 
-const wsProvider = new WsProvider('wss://rpc.devolvedai.com');
-let db;
+    ```bash
+    npx tsc --init
+    ```
 
-async function main() {
-  const api = await ApiPromise.create({ provider: wsProvider });
-  db = new sqlite3.Database('./substrate_data.db');
+## Configuration
 
-  const latestHeader = await api.rpc.chain.getHeader();
-  const latestBlockNumber = latestHeader.number.toNumber();
+1. Create a `.env` file in the root of your project and add your configuration variables:
 
-  for (let blockNumber = 0; blockNumber <= latestBlockNumber; blockNumber++) {
-    await processBlock(api, blockNumber);
-  }
+    ```env
+    DATABASE_URL=postgresql://your_user:your_password@localhost:5432/your_database
+    WS_URL=wss://your_blockchain_node_ws_endpoint
+    PORT=3000
+    ```
 
-  db.close();
-}
+## Usage
 
-async function processBlock(api, blockNumber) {
-  const blockHash = await api.rpc.chain.getBlockHash(blockNumber);
-  const signedBlock = await api.rpc.chain.getBlock(blockHash);
-  const blockEvents = await api.query.system.events.at(blockHash);
+1. To start the server with PM2:
 
-  db.run("INSERT OR IGNORE INTO blocks (number, hash) VALUES (?, ?)", [blockNumber, blockHash.toHex()], function(err) {
-    if (err) {
-      console.error(err.message);
-    } else {
-      console.log(`Block ${blockNumber} (${blockHash}) inserted`);
-    }
-  });
+    ```bash
+    npm run start
+    ```
 
-  for (const extrinsic of signedBlock.block.extrinsics) {
-    const { method: { method, section }, hash, signer, args } = extrinsic;
+2. To start the server without PM2:
 
-    if (section === 'balances' && method === 'transfer') {
-      const [to, amount] = args;
+    ```bash
+    npx ts-node src/index.ts
+    ```
 
-      db.run("INSERT OR IGNORE INTO transactions (hash, block_number, from_address, to_address, amount, fee) VALUES (?, ?, ?, ?, ?, ?)", [
-        hash.toHex(),
-        blockNumber,
-        signer.toString(),
-        to.toString(),
-        amount.toString(),
-        '0'
-      ], function(err) {
-        if (err) {
-          console.error(err.message);
-        } else {
-          console.log(`Transaction ${hash.toHex()} from block ${blockNumber} inserted`);
-        }
-      });
+## Docker Setup
 
-      await updateAccountBalance(api, signer.toString());
-      await updateAccountBalance(api, to.toString());
-    }
-  }
+### Dockerfile for Node.js Application
 
-  blockEvents.forEach((record, index) => {
-    const { event, phase } = record;
-    const types = event.typeDef;
+1. Create a file named `Dockerfile` in the root of your project:
 
-    db.run("INSERT INTO events (block_number, section, method, data) VALUES (?, ?, ?, ?)", [
-      blockNumber,
-      event.section,
-      event.method,
-      JSON.stringify(event.data.map((data, i) => ({ type: types[i].type, value: data.toString() })))
-    ], function(err) {
-      if (err) {
-        console.error(err.message);
-      } else {
-        console.log(`Event ${index} from block ${blockNumber} inserted`);
-      }
-    });
-  });
-}
+    ```Dockerfile
+    # Use the official Node.js 18 image
+    FROM node:18
 
-async function updateAccountBalance(api, address) {
-  const { data: { free: balance } } = await api.query.system.account(address);
+    # Create and change to the app directory
+    WORKDIR /usr/src/app
 
-  db.run("INSERT OR REPLACE INTO accounts (address, balance) VALUES (?, ?)", [address, balance.toString()], function(err) {
-    if (err) {
-      console.error(err.message);
-    } else {
-      console.log(`Balance for account ${address} updated`);
-    }
-  });
-}
+    # Copy package.json and package-lock.json
+    COPY package*.json ./
 
-main().catch(console.error);
-```
+    # Install dependencies
+    RUN npm install
 
-Run this script to fetch and store the chain data:
+    # Install PM2 globally
+    RUN npm install pm2 -g
 
-```sh
-node fetchChainData.js
-```
+    # Copy the rest of the application code
+    COPY . .
 
-### Step 3: Query Functions
+    # Build the TypeScript files
+    RUN npm run build
 
-Create a script to query the stored data. Save this as `queryData.js`.
+    # Expose the port the app runs on
+    EXPOSE 3000
 
-```javascript
-const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database('./substrate_data.db');
+    # Start the application with PM2
+    CMD ["pm2-runtime", "start", "ecosystem.config.js"]
+    ```
 
-function queryAccountBalance(address) {
-  db.get("SELECT * FROM accounts WHERE address = ?", [address], (err, row) => {
-    if (err) {
-      console.error(err.message);
-    } else if (row) {
-      console.log(`Account Balance:
-        Address: ${row.address}
-        Balance: ${row.balance}`);
-    } else {
-      console.log(`Account with address ${address} not found.`);
-    }
-  });
-}
+### Dockerfile for PostgreSQL
 
-function queryTokenHoldings(address) {
-  db.all("SELECT * FROM transactions WHERE from_address = ? OR to_address = ?", [address, address], (err, rows) => {
-    if (err) {
-      console.error(err.message);
-    } else if (rows.length > 0) {
-      console.log(`Token Holdings for ${address}:`);
-      rows.forEach(row => {
-        console.log(`Transaction Hash: ${row.hash}
-          Block Number: ${row.block_number}
-          From: ${row.from_address}
-          To: ${row.to_address}
-          Amount: ${row.amount}
-          Fee: ${row.fee}`);
-      });
-    } else {
-      console.log(`No token holdings found for address ${address}.`);
-    }
-  });
-}
+1. Create a file named `Dockerfile.postgres` in the root of your project:
 
-function queryTransactionByHash(hash) {
-  db.get("SELECT * FROM transactions WHERE hash = ?", [hash], (err, row) => {
-    if (err) {
-      console.error(err.message);
-    } else if (row) {
-      console.log(`Transaction Details:
-        Hash: ${row.hash}
-        Block Number: ${row.block_number}
-        From: ${row.from_address}
-        To: ${row.to_address}
-        Amount: ${row.amount}
-        Fee: ${row.fee}`);
-    } else {
-      console.log(`Transaction with hash ${hash} not found.`);
-    }
-  });
-}
+    ```Dockerfile
+    # Use the official PostgreSQL 14 image
+    FROM postgres:14
 
-// Examples to query specific data
-queryAccountBalance('0xYourAccountAddress');
-queryTokenHoldings('0xYourAccountAddress');
-queryTransactionByHash('0xYourTransactionHash');
+    # Set environment variables
+    ENV POSTGRES_USER=your_database_user
+    ENV POSTGRES_PASSWORD=your_database_password
+    ENV POSTGRES_DB=your_database_name
 
-db.close();
-```
+    # Expose the default PostgreSQL port
+    EXPOSE 5432
+    ```
 
-Run this script to query the data:
+### Docker Compose Configuration
 
-```sh
-node queryData.js
-```
+1. Create a file named `docker-compose.yml` in the root of your project:
+
+    ```yaml
+    version: '3.8'
+
+    services:
+      db:
+        build:
+          context: .
+          dockerfile: Dockerfile.postgres
+        environment:
+          POSTGRES_USER: ${POSTGRES_USER}
+          POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+          POSTGRES_DB: ${POSTGRES_DB}
+        ports:
+          - "5432:5432"
+        volumes:
+          - pgdata:/var/lib/postgresql/data
+
+      app:
+        build: .
+        command: npm run start
+        volumes:
+          - .:/usr/src/app
+          - /usr/src/app/node_modules
+        ports:
+          - "3000:3000"
+        depends_on:
+          - db
+
+    volumes:
+      pgdata:
+    ```
+
+2. Build and start the Docker containers:
+
+    ```bash
+    docker-compose build
+    docker-compose up
+    ```
+
+## API Endpoints
+
+### Blocks
+
+- **GET /api/blocks/:blockNumber** - Fetch a block by its number
+- **GET /api/blocks** - List the latest 10 blocks
+
+### Transactions
+
+- **GET /api/transactions/:txHash** - Fetch a transaction by its hash
+- **GET /api/transactions** - List the latest 10 transactions
+
+### Tokens
+
+- **GET /api/tokens/:tokenId** - Fetch a token by its ID
+- **GET /api/tokens** - List the latest 10 tokens
+
+### Contracts
+
+- **GET /api/contracts/:contractAddress** - Fetch a contract by its address
+- **GET /api/contracts** - List the latest 10 contracts
+
+## Contributing
+
+1. Fork the repository.
+2. Create a new branch: `git checkout -b my-feature-branch`.
+3. Make your changes and commit them: `git commit -m 'Add some feature'`.
+4. Push to the branch: `git push origin my-feature-branch`.
+5. Submit a pull request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
